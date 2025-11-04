@@ -13,12 +13,14 @@ import { TextBox } from "@docsvision/webclient/Platform/TextBox";
 import { TextArea } from "@docsvision/webclient/Platform/TextArea";
 import { CustomButton } from "@docsvision/webclient/Platform/CustomButton";
 import { MessageBox } from "@docsvision/webclient/Helpers/MessageBox/MessageBox"; 
+import { $MyTestService } from "../Services/interfaces/IMyTestService";
+import { StaffDirectoryItems } from "@docsvision/webclient/BackOffice/StaffDirectoryItems";
 
 
 export async function checkDate(layout:Layout,args: CancelableEventArgs<any>){
     let dateFrom: DateTimePicker = layout.controls.get<DateTimePicker>("dateFrom");
     let dateTo: DateTimePicker = layout.controls.get<DateTimePicker>("dateTo");
-    console.log(args.data);
+
     if (dateFrom.params.value.getTime >= dateTo.params.value.getTime) {
         try{
             await MessageBox.ShowConfirmation("Начальная дата не может быть меньше конечной");
@@ -35,7 +37,7 @@ export async function showPreview(layout:Layout,args: CancelableEventArgs<any>){
     let dateFrom: DateTimePicker = layout.controls.get<DateTimePicker>("dateFrom");
     let dateTo: DateTimePicker = layout.controls.get<DateTimePicker>("dateTo");
     let reason:TextArea = layout.controls.get<TextArea>("reason");
-    let rowCity:DirectoryDesignerRow = layout.controls.get<DirectoryDesignerRow>("cityRef");
+    let rowCity: DirectoryDesignerRow = layout.controls.get<DirectoryDesignerRow>("cityRef");
     
     let info: String = 'Имя карточки - '+ cardName.params.value + "\nДата создания - " + dateCreation.params.value +'\n';
     info += 'Дата отправки - '+ dateFrom.params.value + "\nДата прибытия - " + dateTo.params.value + '\n'; 
@@ -60,82 +62,58 @@ export async function onSave(layout:Layout,args: CancelableEventArgs<any>) {
     args.accept();
 }
 
-export class MyTestLogic extends CommonLogic {
-    public async savingConfirmed(layout:ILayout): Promise<boolean> {
-        try {
-            await layout.getService($MessageBox).showConfirmation('Сохранить карточку?');
-            return true;
-        } catch(e) {
-            return false;
-        }
-    }
 
-    public async sendSavingMsg(layout:ILayout) {
-        await layout.getService($MessageBox).showInfo('Карточка сохраняется!');
-    }
+export class MyTestLogic{
     
-    public async sendSavedMsg(layout:ILayout) {
-        await layout.getService($MessageBox).showInfo('Карточка сохранена!');
-    }
-    
-    public async updatePriceField(layout:ILayout) {
-        const typeCtrl = layout.controls.tryGet<DirectoryDesignerRow>("directoryDesignerRowTechType");
-        if (!typeCtrl) {
-             await layout.getService($MessageBox).showError('Элемент управления directoryDesignerRowTechType отсутствует в разметке!');
-             return;
-        }
 
-        await this.updatePriceFieldByTypeCtrl(typeCtrl);
-    }
-    
-    public async updatePriceFieldByTypeCtrl(typeCtrl:DirectoryDesignerRow) {
-        const layout = typeCtrl.layout;
-        const priceControl = layout.controls.tryGet<NumberControl>("numberPrice");
+    async getData(sender: StaffDirectoryItems) {
+        var layout = sender.layout;
 
-        const messageBoxSvc = layout.getService($MessageBox);
-
-        if (!priceControl) {
-            await messageBoxSvc.showError('Элемент управления numberPrice отсутствует в разметке!');
-            return;
-        }
-
-        if (!typeCtrl.params.value || isEmptyGuid(typeCtrl.params.value.id)) {
-            priceControl.params.value = null;
-            return;
-        }
+        const response = await layout.getService($MyTestService).GetMemberSentData({
+            documentId: layout.cardInfo.id,
+            id: sender.params.value["id"]
+        });
+        let chief: StaffDirectoryItems = layout.controls.get<StaffDirectoryItems>("chief");
+        let phoneNumber: TextBox = layout.controls.get<TextBox>("phoneNumber");
         
-        typeCtrl.params.value
-
-        var parsedValue = this.tryParseInt(typeCtrl.params.value.description);
-        if (parsedValue === undefined) {
-            await messageBoxSvc
-                .showError(`В описании строки справочника ${typeCtrl.params.value.name} содержится не число! Значение: ${typeCtrl.params.value.description}`);
-            return;
-        }
-
-        priceControl.params.value = parsedValue;
-        return;
+        var content = JSON.parse(response.content);
+        chief.params.value = response.content["memberChief"];
+        phoneNumber.params.value = content["phoneNumber"];
+        console.log(JSON.parse(response.content));
     }
 
-    public async showEmployeeData(layout: ILayout, itemData:GenModels.IDirectoryItemData) {
-        if (!itemData) { return; }
-        const messageBoxSvc = layout.getService($MessageBox);
-        if (itemData.dataType !== GenModels.DirectoryDataType.Employee) {
-            await messageBoxSvc.showError("Неверный тип объекта");
-            console.log(itemData);
-        }
-
-        const employeeModel = await layout.getService($EmployeeController).getEmployee(itemData.id);
-        if (employeeModel) {
-            const empUnitModel = await layout.getService($DepartmentController).getStaffDepartment(employeeModel.unitId);
-            const lines = [
-                `ФИО: ${employeeModel.lastName} ${employeeModel.firstName ?? ''} ${employeeModel.middleName ?? ''}`,
-                employeeModel.position ? `Должность: ${employeeModel.position}` : null,
-                `Статус: ${this.getEmployeeStatusString(employeeModel.status)}`,
-                empUnitModel ? `Подразделение: ${empUnitModel.name}` : null,
-            ].filter(Boolean).join('\n');
-
-            await messageBoxSvc.showInfo(lines, "Информация о выбранном сотруднике");
-        }
+    async getMoney(sender: DirectoryDesignerRow) {
+        var layout = sender.layout;
+        const response = await layout.getService($MyTestService).ChangeMoneyData({
+            documentId: layout.cardInfo.id,
+            id: sender.params.value["id"]
+        });
+        let money: TextBox = layout.controls.get<TextBox>("dayMoney");
+        var content = JSON.parse(response.content);
+        money.params.value = content["money"];
+        console.log(JSON.parse(response.content));
+    }
+    async changeDayCount(sender: DateTimePicker) {
+        var layout = sender.layout;
+        let dateFrom: DateTimePicker = layout.controls.get<DateTimePicker>("dateFrom");
+        let dateTo: DateTimePicker = layout.controls.get<DateTimePicker>("dateTo");
+        let dayCount: TextBox = layout.controls.get<TextBox>("dayNum");
+        let money: TextBox = layout.controls.get<TextBox>("dayMoney");
+        const response = await layout.getService($MyTestService).ChangeDayCount({
+            documentId: layout.cardInfo.id,
+            dateFrom: dateFrom.params.value.toISOString(),
+            dateTo: dateTo.params.value.toISOString()
+        });
+        var content = JSON.parse(response.content);
+        dayCount.params.value = content["dayCount"];
+        money.params.value = content["money"];
+        console.log(JSON.parse(response.content));
+       
+    }
+    async performAction(layout: Layout){
+        const response = await layout.getService($MyTestService).GetName({
+            documentId:layout.cardInfo.id
+        });
+        
     }
 }

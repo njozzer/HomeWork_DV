@@ -9,12 +9,14 @@ import { NumberControl } from "@docsvision/webclient/Platform/Number";
 import { TextBox } from "@docsvision/webclient/Platform/TextBox";
 import { TextArea } from "@docsvision/webclient/Platform/TextArea";
 import { CustomButton } from "@docsvision/webclient/Platform/CustomButton";
-import { checkDate, onSave, showPreview } from "../Logic/MyTestLogic";
+import { checkDate, MyTestLogic, onSave, showPreview } from "../Logic/MyTestLogic";
+import { StaffDirectoryItems } from "@docsvision/webclient/BackOffice/StaffDirectoryItems";
+import { DirectoryDesignerRow } from "@docsvision/webclient/BackOffice/DirectoryDesignerRow";
 
 
 export async function ddActivity_date_onChange(sender: DateTimePicker,args: CancelableEventArgs<any>) {
-    await checkDate(sender.layout,args);
-        
+    await checkDate(sender.layout, args);
+    new MyTestLogic().changeDayCount(sender);    
 }
 
 export async function ddActivity_card_onSave(layout: Layout,args: CancelableEventArgs<ICardSavingEventArgs>) {
@@ -27,3 +29,10 @@ export async function ddActivity_showPreview_onClick(sender: CustomButton,args: 
     
 }
 
+export async function ddActivity_memberSent_onChange(sender: StaffDirectoryItems) {
+    new MyTestLogic().getData(sender);
+}
+
+export async function ddActivity_cityRef_onChange(sender: DirectoryDesignerRow) {
+    new MyTestLogic().getMoney(sender);
+}
